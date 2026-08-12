@@ -45,6 +45,11 @@ jobs:
           # Left empty when not dispatched so apply-settings.js picks its own default:
           # 'check' on schedule (drift detection), 'verify' on push.
           INPUT_MODE: ${{ inputs.mode }}
+          # The github-token below silently falls back to GITHUB_TOKEN, which the
+          # script cannot distinguish from a PAT. Tell it explicitly, so a repo
+          # with no PAT skips the sections that can only 403 instead of failing
+          # every push to main. Comparing the secret to '' does not expose it.
+          HAS_SETTINGS_TOKEN: ${{ secrets.SETTINGS_TOKEN != '' }}
         with:
           github-token: ${{ secrets.SETTINGS_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

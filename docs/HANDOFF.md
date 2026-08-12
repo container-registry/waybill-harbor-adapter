@@ -158,8 +158,11 @@ Release-please owns tags; do not hand-tag.
 ```
 # 1. Merge the scaffold feat: PR into main (squash).
 # 2. release-please opens a "chore: release 0.1.0" PR. Verify it computes v0.1.0
-#    (manifest seeded 0.0.0 -> first feat: proposes v0.1.0, not 1.0.0).
-#    If it misbehaves, add a `Release-As: 0.1.0` footer commit on main (docs/RELEASES.md).
+#    (`initial-version: 0.1.0` in release-please-config.json is what decides this;
+#    the 0.0.0 manifest seed does NOT — without initial-version the first PR came
+#    out as 1.0.0 on 2026-08-12).
+#    If it misbehaves, add a `Release-As: 0.1.0` footer commit on main touching a
+#    path outside exclude-paths (.github, docs). See docs/RELEASES.md.
 # 3. Merge the release PR (squash). The release-please job tags v0.1.0 and invokes
 #    publish-image.yml (multi-arch build, cosign sign by digest, SPDX attestation).
 # Post-release verification:

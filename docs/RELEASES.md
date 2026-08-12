@@ -20,8 +20,12 @@ version and triggers the image publish. You do not tag or build releases by hand
 - `release-type: go`, default semantics: `feat:` -> minor, `fix:`/`perf:` -> patch.
 - `bump-minor-pre-major: true`: while pre-1.0, a breaking `feat!:` bumps the minor, it
   does not jump to 1.0.0.
-- The manifest is seeded at `0.0.0`, so the first `feat:` release proposes **v0.1.0**
-  (not release-please's default 1.0.0). There is no `v0.0.0` tag; that is harmless.
+- `initial-version: 0.1.0` is what actually decides the **first** release. Seeding
+  the manifest at `0.0.0` does *not* — verified on 2026-08-12, when the first release
+  PR came out as `1.0.0`: release-please treats a repo with no release tag as a
+  bootstrap and takes `initial-version` (default `1.0.0`), so neither the `0.0.0`
+  seed nor `bump-minor-pre-major` gets a say. `bump-minor-pre-major` only governs
+  releases *after* the first one. There is no `v0.0.0` tag; that is harmless.
 
 ## Hard rules
 
@@ -60,8 +64,13 @@ The demo.goharbor.io deployment pins the adapter image tag in the tenant overlay
 release, bump the image tag there to the new `v<version>` and run the deploy. This is a
 documented manual step, one per release.
 
-## If the 0.0.0 bootstrap misbehaves
+## If the first release PR computes the wrong version
 
-If the first release PR does not compute `v0.1.0`, force it with a
-`Release-As: 0.1.0` footer in a commit on `main`, or re-seed
-`.release-please-manifest.json`. Do not hand-tag as a workaround.
+Check `initial-version` in `release-please-config.json` first — that is the knob for
+the bootstrap release, and it is the one that was missing when the first PR proposed
+`1.0.0`.
+
+If it still misbehaves, force it with a `Release-As: 0.1.0` footer in a commit on
+`main`. That commit must touch a path outside `exclude-paths` (`.github`, `docs`) or
+release-please filters it out and never sees the footer. Do not hand-tag as a
+workaround.
