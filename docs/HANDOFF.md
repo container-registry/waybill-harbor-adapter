@@ -495,8 +495,8 @@ Minor (correctness/cost hygiene):
 - CI cost: golangci-lint/govulncheck compiled from source each run; QEMU installed in
   publish-image though the Dockerfile has no RUN steps (binaries are cross-compiled and
   COPY'd). Install lint tools from release binaries; drop setup-qemu. (M4/M5)
-- lprobe adds ~12 MB/arch to probe an endpoint the adapter serves; a `-healthcheck` self-probe
-  flag could drop it. (M2)
+- ~~The healthcheck probe binary adds ~12 MB/arch to probe an endpoint the adapter serves.~~
+  **FIXED**: replaced by `healthprobe-notls` (~2.3 MB/arch). (M2)
 
 Full detail for each finding is in the milestone reports under
 `.claude/plans/waybill-harbor-adapter/`.
