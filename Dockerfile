@@ -40,6 +40,8 @@ COPY bin/linux-${TARGETARCH}/waybill-LICENSE /licenses/waybill-LICENSE
 
 # Healthcheck probe (distroless has no shell/curl) and the adapter binary.
 COPY bin/linux-${TARGETARCH}/healthprobe /usr/local/bin/healthprobe
+COPY bin/linux-${TARGETARCH}/healthprobe-LICENSE /licenses/healthprobe-LICENSE
+COPY bin/linux-${TARGETARCH}/healthprobe-NOTICE /licenses/healthprobe-NOTICE
 COPY bin/linux-${TARGETARCH}/scanner-waybill /usr/local/bin/scanner-waybill
 
 # Establish the per-job work-dir root owned by the nonroot uid. In production this

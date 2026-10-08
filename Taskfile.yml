@@ -106,6 +106,8 @@ tasks:
     # Fully determined by HEALTHPROBE_VERSION: a version stamp makes rebuilds no-ops.
     status:
       - test -x bin/{{.PLATFORM}}/healthprobe
+      - test -f bin/{{.PLATFORM}}/healthprobe-LICENSE
+      - test -f bin/{{.PLATFORM}}/healthprobe-NOTICE
       - test "$(cat bin/{{.PLATFORM}}/.healthprobe-version 2>/dev/null)" = "{{.HEALTHPROBE_VERSION}}"
     cmds:
       - cmd: mkdir -p bin/{{.PLATFORM}}
@@ -117,14 +119,25 @@ tasks:
           arm64) sha='{{.HEALTHPROBE_SHA256_LINUX_ARM64}}' ;;
           *) echo "unsupported healthprobe arch: $arch" >&2; exit 1 ;;
         esac
-        url="https://github.com/container-registry/healthprobe/releases/download/{{.HEALTHPROBE_VERSION}}/healthprobe-notls-linux-${arch}"
-        curl -sSfL "$url" -o bin/{{.PLATFORM}}/healthprobe
+        rm -f bin/{{.PLATFORM}}/.healthprobe-version
+        tmp="$(mktemp -d)"
+        trap 'rm -rf "$tmp"' EXIT
+        release="https://github.com/container-registry/healthprobe/releases/download/{{.HEALTHPROBE_VERSION}}"
+        src="https://raw.githubusercontent.com/container-registry/healthprobe/{{.HEALTHPROBE_VERSION}}"
+        curl -sSfL "${release}/healthprobe-notls-linux-${arch}" -o "$tmp/healthprobe"
+        curl -sSfL "${src}/LICENSE" -o "$tmp/LICENSE"
+        curl -sSfL "${src}/NOTICE" -o "$tmp/NOTICE"
+        sums="${sha}  $tmp/healthprobe
+        {{.HEALTHPROBE_LICENSE_SHA256}}  $tmp/LICENSE
+        {{.HEALTHPROBE_NOTICE_SHA256}}  $tmp/NOTICE"
         if command -v sha256sum >/dev/null 2>&1; then
-          echo "${sha}  bin/{{.PLATFORM}}/healthprobe" | sha256sum -c -
+          echo "$sums" | sha256sum -c -
         else
-          echo "${sha}  bin/{{.PLATFORM}}/healthprobe" | shasum -a 256 -c -
+          echo "$sums" | shasum -a 256 -c -
         fi
-        chmod +x bin/{{.PLATFORM}}/healthprobe
+        install -m 0755 "$tmp/healthprobe" bin/{{.PLATFORM}}/healthprobe
+        install -m 0644 "$tmp/LICENSE" bin/{{.PLATFORM}}/healthprobe-LICENSE
+        install -m 0644 "$tmp/NOTICE" bin/{{.PLATFORM}}/healthprobe-NOTICE
       - cmd: echo "{{.HEALTHPROBE_VERSION}}" > bin/{{.PLATFORM}}/.healthprobe-version
         silent: true
 
