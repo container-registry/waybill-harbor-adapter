@@ -150,8 +150,9 @@ test defect. CI runners have no such restriction.
 
 ## b. What was deliberately NOT done — and the exact owner commands
 
-M6, M8, M9, M10 involve network actions (repo creation, image publish, release, deploy) and
-are the owner's to run. None were performed.
+M8, M9, M10 involve network actions (release, deploy) and are the owner's to run. None
+were performed. M6 (repository, 8gears FedIDP robot, first image publish) was completed by
+the owner on 2026-08-12; see §c.
 
 ### M8 — cut the first release (needs M5, M6, M7)
 Release-please owns tags; do not hand-tag.
