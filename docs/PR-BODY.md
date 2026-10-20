@@ -191,6 +191,8 @@ manifest-size probe before handing the reference to waybill; tracked, not done.
   `8gears.container-registry.com` (global GitHub OIDC provider, claim rule
   `repository == container-registry/waybill-harbor-adapter`, audience
   `https://8gears.container-registry.com`, push on `8gcr`). See `docs/HANDOFF.md` §c.
+  *Superseded: the robot was created on 2026-08-12. The audience is a property of the
+  trusted issuer, not a claim rule; `docs/HANDOFF.md` §c has the current setup.*
 - **No image published**, and **the GitHub repo rename is not done** (owner action).
 
 ## Open findings (carried, not fixed)

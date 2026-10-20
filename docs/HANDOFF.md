@@ -150,8 +150,9 @@ test defect. CI runners have no such restriction.
 
 ## b. What was deliberately NOT done — and the exact owner commands
 
-M6, M8, M9, M10 involve network actions (repo creation, image publish, release, deploy) and
-are the owner's to run. None were performed.
+M8, M9, M10 involve network actions (release, deploy) and are the owner's to run. None
+were performed. M6 (repository, 8gears FedIDP robot, first image publish) was completed by
+the owner on 2026-08-12; see §c.
 
 ### M8 — cut the first release (needs M5, M6, M7)
 Release-please owns tags; do not hand-tag.
@@ -165,12 +166,14 @@ Release-please owns tags; do not hand-tag.
 # Post-release verification:
 # Pin the signer. A wildcard identity/issuer only proves "some Fulcio-backed
 # signature exists" and would pass for any principal that can push to the repo.
+# The identity is the reusable workflow at the ref it was called from. Releases run
+# from release-please.yml on a push to main, so it is @refs/heads/main, not the tag.
 cosign verify \
-  --certificate-identity "https://github.com/container-registry/waybill-harbor-adapter/.github/workflows/publish-image.yml@refs/tags/v0.1.0" \
+  --certificate-identity "https://github.com/container-registry/waybill-harbor-adapter/.github/workflows/publish-image.yml@refs/heads/main" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
   8gears.container-registry.com/8gcr/waybill-harbor-adapter@<digest>
 cosign verify-attestation --type spdx \
-  --certificate-identity "https://github.com/container-registry/waybill-harbor-adapter/.github/workflows/publish-image.yml@refs/tags/v0.1.0" \
+  --certificate-identity "https://github.com/container-registry/waybill-harbor-adapter/.github/workflows/publish-image.yml@refs/heads/main" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
   <same digest>
 docker buildx imagetools inspect 8gears.container-registry.com/8gcr/waybill-harbor-adapter:v0.1.0  # multi-arch
@@ -213,22 +216,20 @@ bash scripts/c8n-smoke.sh demo.goharbor.io admin "$ADMIN_PASSWORD" zz-smoke   # 
 # Confirm the three upstream waybill issues are still filed. Commit the tenant file.
 ```
 
-## c. The 8gears FedIDP robot that MUST exist before any image publish
+## c. The 8gears FedIDP robot
 
-**Nothing publishes to `8gcr` until this federated robot exists.** `publish-image.yml`
-mints a GitHub OIDC token and logs in to `8gears.container-registry.com` with
-`username: jwt`, password = the OIDC token (keyless WIF). Required config on
-`8gears.container-registry.com` (Administration -> Federated Identity Providers;
-the registry already runs global `github`/`gitlab` providers, so this is one more
-claim rule, not a new provider):
+`publish-image.yml` mints a GitHub OIDC token with audience
+`https://8gears.container-registry.com` and logs in to `8gears.container-registry.com`
+with `username: jwt`, password = the OIDC token (keyless WIF). Config on
+`8gears.container-registry.com` (Administration -> Federated Identity Providers),
+created 2026-08-12; the first publish (`latest`) succeeded the same day:
 
-- **Global GitHub OIDC provider** configured.
+- **Trusted issuer:** the global GitHub Actions issuer (`github`). Its **audience** is
+  `https://8gears.container-registry.com`. Audience and issuer are properties of the
+  trusted issuer; Harbor does not accept `aud` or `iss` as claim rules.
+- **Robot:** `robot_gh-waybill-adapter-push`, permission pull + push on project `8gcr`
+  (cosign signatures and attestations are pushed to the same repository).
 - **Claim rule:** `repository == container-registry/waybill-harbor-adapter`.
-- **Audience:** `https://8gears.container-registry.com`.
-- **Permission:** push on project `8gcr`.
-
-Until this robot exists, `main-image.yml` `workflow_dispatch` (the WIF smoke) and every
-release publish will fail at `docker login`. This is M6 ops work and has not been done.
 
 ## d. demo.goharbor.io extraManifests block
 
