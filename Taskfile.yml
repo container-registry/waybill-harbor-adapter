@@ -90,42 +90,55 @@ tasks:
     cmds:
       - go build {{.GOBUILD_FLAGS}} -ldflags "{{.LDFLAGS}}" -o bin/{{.PLATFORM}}/{{.BINARY}} ./cmd/scanner-waybill
 
-  build:lprobe:
-    desc: "Fetch the pinned lprobe healthcheck binary for PLATFORMS (image dependency)"
+  build:healthprobe:
+    desc: "Fetch the pinned healthprobe healthcheck binary for PLATFORMS (image dependency)"
     vars:
       PLATFORMS: '{{.PLATFORMS | default .CI_PLATFORMS}}'
     cmds:
       - for: {var: PLATFORMS, split: ','}
-        task: 'build:lprobe:{{.ITEM | trim | replace "/" "-"}}'
+        task: 'build:healthprobe:{{.ITEM | trim | replace "/" "-"}}'
 
-  build:lprobe:*:
-    desc: "Fetch pinned lprobe for one platform, e.g. build:lprobe:linux-arm64"
+  build:healthprobe:*:
+    desc: "Fetch pinned healthprobe for one platform, e.g. build:healthprobe:linux-arm64"
     vars:
       PLATFORM: '{{index .MATCH 0}}'
       GOARCH: '{{index (splitList "-" (index .MATCH 0)) 1}}'
-    # Fully determined by LPROBE_VERSION: a version stamp makes rebuilds no-ops.
+    # Fully determined by HEALTHPROBE_VERSION: a version stamp makes rebuilds no-ops.
     status:
-      - test -x bin/{{.PLATFORM}}/lprobe
-      - test "$(cat bin/{{.PLATFORM}}/.lprobe-version 2>/dev/null)" = "{{.LPROBE_VERSION}}"
+      - test -x bin/{{.PLATFORM}}/healthprobe
+      - test -f bin/{{.PLATFORM}}/healthprobe-LICENSE
+      - test -f bin/{{.PLATFORM}}/healthprobe-NOTICE
+      - test "$(cat bin/{{.PLATFORM}}/.healthprobe-version 2>/dev/null)" = "{{.HEALTHPROBE_VERSION}}"
     cmds:
       - cmd: mkdir -p bin/{{.PLATFORM}}
         silent: true
       - |
         arch='{{.GOARCH}}'
         case "$arch" in
-          amd64) sha='{{.LPROBE_SHA256_LINUX_AMD64}}' ;;
-          arm64) sha='{{.LPROBE_SHA256_LINUX_ARM64}}' ;;
-          *) echo "unsupported lprobe arch: $arch" >&2; exit 1 ;;
+          amd64) sha='{{.HEALTHPROBE_SHA256_LINUX_AMD64}}' ;;
+          arm64) sha='{{.HEALTHPROBE_SHA256_LINUX_ARM64}}' ;;
+          *) echo "unsupported healthprobe arch: $arch" >&2; exit 1 ;;
         esac
-        url="https://github.com/fivexl/lprobe/releases/download/{{.LPROBE_VERSION}}/lprobe-linux-${arch}"
-        curl -sSfL "$url" -o bin/{{.PLATFORM}}/lprobe
+        rm -f bin/{{.PLATFORM}}/.healthprobe-version
+        tmp="$(mktemp -d)"
+        trap 'rm -rf "$tmp"' EXIT
+        release="https://github.com/container-registry/healthprobe/releases/download/{{.HEALTHPROBE_VERSION}}"
+        src="https://raw.githubusercontent.com/container-registry/healthprobe/{{.HEALTHPROBE_VERSION}}"
+        curl -sSfL "${release}/healthprobe-notls-linux-${arch}" -o "$tmp/healthprobe"
+        curl -sSfL "${src}/LICENSE" -o "$tmp/LICENSE"
+        curl -sSfL "${src}/NOTICE" -o "$tmp/NOTICE"
+        sums="${sha}  $tmp/healthprobe
+        {{.HEALTHPROBE_LICENSE_SHA256}}  $tmp/LICENSE
+        {{.HEALTHPROBE_NOTICE_SHA256}}  $tmp/NOTICE"
         if command -v sha256sum >/dev/null 2>&1; then
-          echo "${sha}  bin/{{.PLATFORM}}/lprobe" | sha256sum -c -
+          echo "$sums" | sha256sum -c -
         else
-          echo "${sha}  bin/{{.PLATFORM}}/lprobe" | shasum -a 256 -c -
+          echo "$sums" | shasum -a 256 -c -
         fi
-        chmod +x bin/{{.PLATFORM}}/lprobe
-      - cmd: echo "{{.LPROBE_VERSION}}" > bin/{{.PLATFORM}}/.lprobe-version
+        install -m 0755 "$tmp/healthprobe" bin/{{.PLATFORM}}/healthprobe
+        install -m 0644 "$tmp/LICENSE" bin/{{.PLATFORM}}/healthprobe-LICENSE
+        install -m 0644 "$tmp/NOTICE" bin/{{.PLATFORM}}/healthprobe-NOTICE
+      - cmd: echo "{{.HEALTHPROBE_VERSION}}" > bin/{{.PLATFORM}}/.healthprobe-version
         silent: true
 
   build:waybill:
@@ -280,7 +293,7 @@ tasks:
     cmds:
       - task: build
         vars: {PLATFORMS: '{{.PLATFORMS}}'}
-      - task: build:lprobe
+      - task: build:healthprobe
         vars: {PLATFORMS: '{{.PLATFORMS}}'}
       - task: build:waybill
         vars: {PLATFORMS: '{{.PLATFORMS}}'}
@@ -332,7 +345,7 @@ tasks:
     # build:waybill is required, not optional: the Dockerfile COPYs the staged
     # waybill binary out of bin/, so without it the compose build fails on a
     # clean checkout.
-    deps: [build, build:lprobe, build:waybill]
+    deps: [build, build:healthprobe, build:waybill]
     cmds:
       - docker compose -f compose.yaml up --build -d
       - cmd: 'echo "adapter + redis are up; logs: docker compose -f compose.yaml logs -f"'
@@ -385,7 +398,7 @@ tasks:
         echo ""
         echo "Pins (versions.env):"
         echo "  waybill CLI:    {{.WAYBILL_CLI_VERSION}} (release tarball)"
-        echo "  lprobe:         {{.LPROBE_VERSION}}"
+        echo "  healthprobe:    {{.HEALTHPROBE_VERSION}} (notls)"
         echo "  golangci-lint:  {{.GOLANGCILINT_VERSION}}"
         echo "  govulncheck:    {{.GOVULNCHECK_VERSION}}"
         echo "  Task (CI):      {{.TASK_VERSION}}"

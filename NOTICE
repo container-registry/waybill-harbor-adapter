@@ -18,3 +18,16 @@ against the release's own SHA256SUMS; see versions.env and Taskfile.yml).
 
 A copy of the waybill license is shipped inside the container image at
 /licenses/waybill-LICENSE, as required by the Apache-2.0 redistribution terms.
+
+This product's container image also bundles the healthprobe healthcheck binary
+(healthprobe-notls), redistributed unmodified from the upstream release
+(checksum-verified at build time against the release's checksums.txt; see
+versions.env and Taskfile.yml).
+
+  healthprobe
+  Copyright 2026 8gears AG
+  Licensed under the Apache License, Version 2.0
+  https://github.com/container-registry/healthprobe
+
+The healthprobe license and NOTICE are shipped inside the container image at
+/licenses/healthprobe-LICENSE and /licenses/healthprobe-NOTICE.

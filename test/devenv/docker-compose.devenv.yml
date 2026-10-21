@@ -12,7 +12,7 @@
 #
 # The image is built out-of-band by run-e2e.sh (task image), NOT via a compose
 # build: the Dockerfile COPYs host-staged binaries out of bin/linux-<arch>/, which
-# `task image` populates via build / build:lprobe / build:waybill.
+# `task image` populates via build / build:healthprobe / build:waybill.
 services:
   waybill-adapter:
     image: ${ADAPTER_IMAGE:-waybill-harbor-adapter:e2e}

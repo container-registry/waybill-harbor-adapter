@@ -2,13 +2,14 @@
 #
 # Multi-stage build for the waybill Harbor scanner adapter.
 #
-# The adapter binary, the lprobe healthcheck binary, and the waybill CLI are all
-# staged on the host into bin/linux-<arch>/ by `task build`, `task build:lprobe`,
-# and `task build:waybill`, then COPY'd in (no Go build stage, so multi-arch needs
-# no Go-under-QEMU). waybill comes from its checksum-verified public release
-# tarball rather than ghcr.io/kusari-oss/waybill, which is a private package; the
-# binaries are identical. The final base is glibc-based distroless: waybill
-# releases are *-unknown-linux-gnu, so alpine/musl/static bases are wrong.
+# The adapter binary, the healthprobe healthcheck binary, and the waybill CLI are
+# all staged on the host into bin/linux-<arch>/ by `task build`,
+# `task build:healthprobe`, and `task build:waybill`, then COPY'd in (no Go build
+# stage, so multi-arch needs no Go-under-QEMU). waybill comes from its
+# checksum-verified public release tarball rather than ghcr.io/kusari-oss/waybill,
+# which is a private package; the binaries are identical. The final base is
+# glibc-based distroless: waybill releases are *-unknown-linux-gnu, so
+# alpine/musl/static bases are wrong.
 
 # Digest-pinned distroless cc-debian12:nonroot (glibc + libssl + ca-certificates,
 # nonroot uid 65532, no shell). BASE_IMAGE is passed by `task image` from versions.env.
@@ -38,7 +39,9 @@ COPY bin/linux-${TARGETARCH}/waybill /usr/local/bin/waybill
 COPY bin/linux-${TARGETARCH}/waybill-LICENSE /licenses/waybill-LICENSE
 
 # Healthcheck probe (distroless has no shell/curl) and the adapter binary.
-COPY bin/linux-${TARGETARCH}/lprobe /usr/local/bin/lprobe
+COPY bin/linux-${TARGETARCH}/healthprobe /usr/local/bin/healthprobe
+COPY bin/linux-${TARGETARCH}/healthprobe-LICENSE /licenses/healthprobe-LICENSE
+COPY bin/linux-${TARGETARCH}/healthprobe-NOTICE /licenses/healthprobe-NOTICE
 COPY bin/linux-${TARGETARCH}/scanner-waybill /usr/local/bin/scanner-waybill
 
 # Establish the per-job work-dir root owned by the nonroot uid. In production this
@@ -61,6 +64,6 @@ USER nonroot
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD ["/usr/local/bin/lprobe", "-mode=http", "-port=8080", "-endpoint=/probe/healthy"]
+  CMD ["/usr/local/bin/healthprobe", "-mode=http", "-port=8080", "-endpoint=/probe/healthy"]
 
 ENTRYPOINT ["/usr/local/bin/scanner-waybill"]
