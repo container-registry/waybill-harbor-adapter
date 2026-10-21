@@ -95,10 +95,24 @@ module.exports = async ({ github, context, core }) => {
     core.info('✓ environments')
   }
 
+  // Sections the default GITHUB_TOKEN cannot write. Without a PAT in
+  // SETTINGS_TOKEN these 403 no matter what settings.yml says.
+  const PRIVILEGED = ['repository', 'security', 'rulesets', 'branches', 'environments']
+
+  // Whether a dedicated PAT is configured. The workflow falls back to
+  // GITHUB_TOKEN, so the script cannot tell the two apart from the token itself.
+  const hasSettingsToken = process.env.HAS_SETTINGS_TOKEN === 'true'
+
   // Apply all settings, collecting failures rather than swallowing them. An apply
-  // run is deliberate, so a missing SETTINGS_TOKEN or a permission error has to
-  // fail the step: warnings alone render a green check on a run that changed
-  // nothing. Every section is still attempted so one failure does not hide the rest.
+  // run is deliberate, so a permission error has to fail the step: warnings alone
+  // render a green check on a run that changed nothing. Every section is still
+  // attempted so one failure does not hide the rest.
+  //
+  // The exception is a repo with no SETTINGS_TOKEN at all. There the privileged
+  // sections are not "failing", they are unconfigured — attempting them turns
+  // every push to main permanently red while telling the maintainer nothing they
+  // could not read here. Those sections are skipped with a notice, and only the
+  // sections that genuinely should work (labels, code_scanning) can fail the run.
   async function applyAll() {
     const sections = [
       ['repository', applyRepository],
@@ -110,19 +124,30 @@ module.exports = async ({ github, context, core }) => {
       ['environments', applyEnvironments],
     ]
     const failures = []
+    const skipped = []
     for (const [name, fn] of sections) {
+      const privileged = PRIVILEGED.includes(name)
+      if (privileged && !hasSettingsToken) {
+        if (settings[name === 'repository' ? 'repository' : name]) skipped.push(name)
+        continue
+      }
       try {
         await fn()
       } catch (e) {
-        // The PAT hint only fits the sections the default GITHUB_TOKEN cannot
-        // write; blaming the token for a label typo or a rate limit misleads.
-        const needsToken = ['repository', 'security', 'rulesets', 'branches', 'environments'].includes(name)
-        core.warning(`${name}: ${e.message}${needsToken ? ' (needs SETTINGS_TOKEN?)' : ''}`)
+        // The PAT hint only fits the privileged sections; blaming the token for
+        // a label typo or a rate limit misleads.
+        core.warning(`${name}: ${e.message}${privileged ? ' (needs SETTINGS_TOKEN?)' : ''}`)
         failures.push(name)
       }
     }
+    if (skipped.length) {
+      core.notice(
+        `Skipped ${skipped.join(', ')}: no SETTINGS_TOKEN secret is configured, and the default GITHUB_TOKEN cannot write these. ` +
+        `Add a PAT with 'repo' scope as the SETTINGS_TOKEN secret to manage them from settings.yml ` +
+        `(branch protection and squash-merge-only are in that set, and release-please needs squash-merge-only).`)
+    }
     if (failures.length) {
-      throw new Error(`failed to apply: ${failures.join(', ')} (see warnings above; a PAT in SETTINGS_TOKEN is required for repository, security, rulesets, branches and environments)`)
+      throw new Error(`failed to apply: ${failures.join(', ')} (see warnings above)`)
     }
   }
 
@@ -302,13 +327,20 @@ module.exports = async ({ github, context, core }) => {
       return true
     }
 
-    if (soft) {
-      core.info('Drift (not yet failing): settings.yml differs from GitHub state.')
+    // Without a PAT the privileged sections were never applied, so drift is the
+    // expected state, not a regression to fail on. Report it as a notice with
+    // the diff so it stays visible, and let the run go green.
+    if (soft || !hasSettingsToken) {
+      const why = hasSettingsToken
+        ? 'Drift (not yet failing): settings.yml differs from GitHub state.'
+        : 'Drift is expected: no SETTINGS_TOKEN is configured, so repository/security/rulesets/branches/environments were never applied.'
+      core.info(why)
+      if (!hasSettingsToken) core.notice(why)
     } else {
       core.setFailed('Drift detected! settings.yml differs from GitHub state.')
-      core.info('Expected:\n' + expectedJson)
-      core.info('Actual:\n' + actualJson)
     }
+    core.info('Expected:\n' + expectedJson)
+    core.info('Actual:\n' + actualJson)
     return false
   }
 
