@@ -4,6 +4,6 @@
   "description": "Pinned dependency for .github/scripts/apply-settings.js. Not part of the adapter; the repo ships no JavaScript.",
   "license": "Apache-2.0",
   "dependencies": {
-    "js-yaml": "4.3.1"
+    "js-yaml": "4.3.2"
   }
 }
